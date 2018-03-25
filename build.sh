@@ -2,7 +2,7 @@ rm -rf build
 mkdir build
 cd build
 
-cmake \
+~/cmake/cmake-3.11.0-rc4/bin/cmake \
     -DCMAKE_CXX_COMPILER=g++\
     -DCMAKE_C_COMPILER=gcc\
     -DENABLE_TESTS=Off\
