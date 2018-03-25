@@ -466,18 +466,12 @@ void Mesh::calcCtrs(
         ex[e] = 0.5 * (px[p1] + px[p2]);
     });
 
-    // TODO: this should be on the device
-#if 0
-    RAJA::forall<inner_exec_host>(sfirst, slast, [=] RAJA_DEVICE(int s) {
-#endif // if 0
-    for(int s = sfirst; s < slast; ++s) {
+    RAJA::forall<exec_policy>(sfirst, slast, [=] RAJA_DEVICE(int s) {
         int z = mapsz[s];
         int p1 = mapsp1[s];
-        zx[z] = zx[z] + px[p1];
-    }
-#if 0
+        RAJA::atomic::atomicAdd<atomic_policy>(&zx[z].x, px[p1].x);
+        RAJA::atomic::atomicAdd<atomic_policy>(&zx[z].y, px[p1].y);
     });
-#endif // if 0
 
     int* znump = this->znump;
     RAJA::forall<exec_policy>(zfirst, zlast, [=] RAJA_DEVICE(int z) {
