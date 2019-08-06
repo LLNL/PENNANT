@@ -120,4 +120,10 @@ if (ENABLE_CUDA)
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR})
 
+  target_compile_options(
+    pennant-RAJA-cuda.exe
+    PRIVATE
+    -arch=${CUDA_ARCH}
+    --expt-extended-lambda
+  )
 endif ()

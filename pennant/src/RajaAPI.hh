@@ -24,9 +24,9 @@ namespace RajaAPI {
   using reduce_policy = RAJA::seq_reduce;
   using chunk_policy = RAJA::seq_exec;
   using inner_exec_host = RAJA::seq_exec;
-  using inner_reduce_policy = RAJA::cuda_reduce<CUDA_REDUCE_BLOCK_SZ>;
+  using inner_reduce_policy = RAJA::cuda_reduce;
   using exec_policy = RAJA::cuda_exec<CUDA_EXEC_BLOCK_SZ>;
-  using atomic_policy = RAJA::atomic::cuda_atomic;
+  using atomic_policy = RAJA::cuda_atomic;
 
 #define RAJA_HOST_DEVICE __host__ __device__
 

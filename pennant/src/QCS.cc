@@ -131,12 +131,12 @@ void QCS::setCornerDiv(
     // [1] Compute a zone-centered velocity
     fill(&z0uc[0], &z0uc[zlast-zfirst], make_double2(0., 0.));
 
-    RAJA::forall<exec_policy>(cfirst, clast, [=] RAJA_DEVICE(int c) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(cfirst, clast), [=] RAJA_DEVICE(int c) {
         int p = mapsp1[c];
         int z = mapsz[c];
         int z0 = z - zfirst;
-        RAJA::atomic::atomicAdd<atomic_policy>(&z0uc[z0].x, pu[p].x);
-        RAJA::atomic::atomicAdd<atomic_policy>(&z0uc[z0].y, pu[p].y);
+        RAJA::atomicAdd<atomic_policy>(&z0uc[z0].x, pu[p].x);
+        RAJA::atomicAdd<atomic_policy>(&z0uc[z0].y, pu[p].y);
     });
 
 #if 0
@@ -148,13 +148,13 @@ void QCS::setCornerDiv(
     }
 #endif // if 0
 
-    RAJA::forall<exec_policy>(zfirst, zlast, [=] RAJA_DEVICE(int z) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(zfirst, zlast), [=] RAJA_DEVICE(int z) {
         int z0 = z - zfirst;
         z0uc[z0] = z0uc[z0] / (double) znump[z];
     });
 
     // [2] Divergence at the corner
-    RAJA::forall<exec_policy>(cfirst, clast, [=] RAJA_DEVICE(int c) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(cfirst, clast), [=] RAJA_DEVICE(int c) {
         int s2 = c;
         int s = mapss3[s2];
         // Associated zone, corner, point
@@ -263,7 +263,7 @@ void QCS::setQCnForce(
     const double q2 = this->q2;
 
     // [4.1] Compute the c0rmu (real Kurapatenko viscous scalar)
-    RAJA::forall<exec_policy>(cfirst, clast, [=] RAJA_DEVICE(int c) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(cfirst, clast), [=] RAJA_DEVICE(int c) {
         int c0 = c - cfirst;
         int z = mapsz[c];
 
@@ -278,7 +278,7 @@ void QCS::setQCnForce(
     }); // for c
 
     // [4.2] Compute the c0qe for each corner
-    RAJA::forall<exec_policy>(cfirst, clast, [=] RAJA_DEVICE(int c) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(cfirst, clast), [=] RAJA_DEVICE(int c) {
         int s4 = c;
         int s = mapss3[s4];
         int c0 = c - cfirst;
@@ -321,7 +321,7 @@ void QCS::setForce(
     double* c0w = Memory::alloc<double>(clast - cfirst);
 
     // [5.1] Preparation of extra variables
-    RAJA::forall<exec_policy>(cfirst, clast, [=] RAJA_DEVICE(int c) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(cfirst, clast), [=] RAJA_DEVICE(int c) {
         int c0 = c - cfirst;
         double csin2 = 1.0 - c0cos[c0] * c0cos[c0];
         c0w[c0]   = ((csin2 < 1.e-4) ? 0. : c0area[c0] / csin2);
@@ -329,7 +329,7 @@ void QCS::setForce(
     }); // for c
 
     // [5.2] Set-Up the forces on corners
-    RAJA::forall<exec_policy>(sfirst, slast, [=] RAJA_DEVICE(int s) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(sfirst, slast), [=] RAJA_DEVICE(int s) {
         // Associated corners 1 and 2, and edge
         int c1 = s;
         int c10 = c1 - cfirst;
@@ -374,7 +374,7 @@ void QCS::setVelDiff(
     double* z0tmp = Memory::alloc<double>(zlast - zfirst);
 
     fill(&z0tmp[0], &z0tmp[zlast-zfirst], 0.);
-    RAJA::forall<exec_policy>(sfirst, slast, [=] RAJA_DEVICE(int s) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(sfirst, slast), [=] RAJA_DEVICE(int s) {
         int p1 = mapsp1[s];
         int p2 = mapsp2[s];
         int z = mapsz[s];
@@ -390,7 +390,7 @@ void QCS::setVelDiff(
         z0tmp[z0] = max(z0tmp[z0], dux);
     });
 
-    RAJA::forall<exec_policy>(zfirst, zlast, [=] RAJA_DEVICE(int z) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(zfirst, zlast), [=] RAJA_DEVICE(int z) {
         int z0 = z - zfirst;
         zdu[z] = q1 * zss[z] + 2. * q2 * z0tmp[z0];
     });

@@ -51,7 +51,7 @@ void PolyGas::calcStateAtHalf(
 
     // now advance pressure to the half-step
 
-    RAJA::forall<exec_policy>(zfirst, zlast, [=] RAJA_DEVICE(int z) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(zfirst, zlast), [=] RAJA_DEVICE(int z) {
         int z0 = z - zfirst;
         double zminv = 1. / zm[z];
         double dv = (zvolp[z] - zvol0[z]) * zminv;
@@ -77,7 +77,7 @@ void PolyGas::calcEOS(
     const double gm1 = gamma - 1.;
     const double ss2 = max(ssmin * ssmin, 1.e-99);
 
-    RAJA::forall<exec_policy>(zfirst, zlast, [=] RAJA_DEVICE(int z) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(zfirst, zlast), [=] RAJA_DEVICE(int z) {
         int z0 = z - zfirst;
         double rx = zr[z];
         double ex = max(ze[z], 0.0);
@@ -103,7 +103,7 @@ void PolyGas::calcForce(
     const Mesh* mesh = hydro->mesh;
     const int* mapsz = mesh->mapsz;
 
-    RAJA::forall<exec_policy>(sfirst, slast, [=] RAJA_DEVICE(int s) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(sfirst, slast), [=] RAJA_DEVICE(int s) {
         int z = mapsz[s];
         double2 sfx = -zp[z] * ssurfp[s];
         sf[s] = sfx;

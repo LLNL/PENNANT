@@ -141,7 +141,7 @@ void Mesh::init() {
     smf = Memory::alloc<double>(nums);
 
     // do a few initial calculations
-    RAJA::forall<chunk_policy>(0, numpch, [=] (int pch) {
+    RAJA::forall<chunk_policy>(RAJA::RangeSegment(0, numpch), [=] (int pch) {
         int pfirst = pchpfirst[pch];
         int plast = pchplast[pch];
         // copy nodepos into px, distributed across threads
@@ -151,7 +151,7 @@ void Mesh::init() {
     });
 
     numsbad = 0;
-    RAJA::forall<chunk_policy>(0, numsch, [=] (int sch) {
+    RAJA::forall<chunk_policy>(RAJA::RangeSegment(0, numsch), [=] (int sch) {
         int sfirst = schsfirst[sch];
         int slast = schslast[sch];
         calcCtrs(px, ex, zx, sfirst, slast);
@@ -459,22 +459,22 @@ void Mesh::calcCtrs(
     const int* mapse = this->mapse;
     const int* mapsz = this->mapsz;
 
-    RAJA::forall<exec_policy>(sfirst, slast, [=] RAJA_DEVICE(int s) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(sfirst, slast), [=] RAJA_DEVICE(int s) {
         int p2 = mapsp2[s];
         int p1 = mapsp1[s];
         int e = mapse[s];
         ex[e] = 0.5 * (px[p1] + px[p2]);
     });
 
-    RAJA::forall<exec_policy>(sfirst, slast, [=] RAJA_DEVICE(int s) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(sfirst, slast), [=] RAJA_DEVICE(int s) {
         int z = mapsz[s];
         int p1 = mapsp1[s];
-        RAJA::atomic::atomicAdd<atomic_policy>(&zx[z].x, px[p1].x);
-        RAJA::atomic::atomicAdd<atomic_policy>(&zx[z].y, px[p1].y);
+        RAJA::atomicAdd<atomic_policy>(&zx[z].x, px[p1].x);
+        RAJA::atomicAdd<atomic_policy>(&zx[z].y, px[p1].y);
     });
 
     int* znump = this->znump;
-    RAJA::forall<exec_policy>(zfirst, zlast, [=] RAJA_DEVICE(int z) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(zfirst, zlast), [=] RAJA_DEVICE(int z) {
         zx[z] = zx[z] / (double) znump[z];
     });
 
@@ -502,7 +502,7 @@ void Mesh::calcVols(
     const double third = 1. / 3.;
 
     RAJA::ReduceSum<inner_reduce_policy, int> count(0);
-    RAJA::forall<exec_policy>(sfirst, slast, [=] RAJA_DEVICE(int s) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(sfirst, slast), [=] RAJA_DEVICE(int s) {
         int p1 = mapsp1[s];
         int p2 = mapsp2[s];
         int z = mapsz[s];
@@ -513,8 +513,8 @@ void Mesh::calcVols(
         sarea[s] = sa;
         svol[s] = sv;
 
-        RAJA::atomic::atomicAdd<atomic_policy>(&zarea[z], sa);
-        RAJA::atomic::atomicAdd<atomic_policy>(&zvol[z], sv);
+        RAJA::atomicAdd<atomic_policy>(&zarea[z], sa);
+        RAJA::atomicAdd<atomic_policy>(&zvol[z], sv);
 
         // check for negative side volumes
         if (sv <= 0.) count += 1;
@@ -548,7 +548,7 @@ void Mesh::calcSideFracs(
         const int slast) {
 
     const int* mapsz = this->mapsz;
-    RAJA::forall<exec_policy>(sfirst, slast, [=] RAJA_DEVICE(int s) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(sfirst, slast), [=] RAJA_DEVICE(int s) {
         int z = mapsz[s];
         smf[s] = sarea[s] / zarea[z];
     });
@@ -564,7 +564,7 @@ void Mesh::calcSurfVecs(
 
     const int* mapsz = this->mapsz;
     const int* mapse = this->mapse;
-    RAJA::forall<exec_policy>(sfirst, slast, [=] RAJA_DEVICE(int s) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(sfirst, slast), [=] RAJA_DEVICE(int s) {
         int z = mapsz[s];
         int e = mapse[s];
 
@@ -584,7 +584,7 @@ void Mesh::calcEdgeLen(
     const int* mapsp1 = this->mapsp1;
     const int* mapsp2 = this->mapsp2;
     const int* mapse = this->mapse;
-    RAJA::forall<exec_policy>(sfirst, slast, [=] RAJA_DEVICE(int s) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(sfirst, slast), [=] RAJA_DEVICE(int s) {
         const int p1 = mapsp1[s];
         const int p2 = mapsp2[s];
         const int e = mapse[s];
@@ -609,7 +609,7 @@ void Mesh::calcCharLen(
     int zlast = (slast < nums ? mapsz[slast] : numz);
     fill(&zdl[zfirst], &zdl[zlast], 1.e99);
 
-    RAJA::forall<exec_policy>(sfirst, slast, [=] RAJA_DEVICE(int s) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(sfirst, slast), [=] RAJA_DEVICE(int s) {
         int z = mapsz[s];
         int e = mapse[s];
 
@@ -618,7 +618,7 @@ void Mesh::calcCharLen(
         double fac = (znump[z] == 3 ? 3. : 4.);
         double sdl = fac * area / base;
 
-        RAJA::atomic::atomicMin<atomic_policy>(&zdl[z], sdl);
+        RAJA::atomicMin<atomic_policy>(&zdl[z], sdl);
 
     });
 
@@ -788,7 +788,7 @@ void Mesh::sumOnProc(
         const T* cvar,
         T* pvar) {
 
-    RAJA::forall<chunk_policy>(0, numpch, [=] (int pch) {
+    RAJA::forall<chunk_policy>(RAJA::RangeSegment(0, numpch), [=] (int pch) {
         int pfirst = pchpfirst[pch];
         int plast = pchplast[pch];
         for (int p = pfirst; p < plast; ++p) {

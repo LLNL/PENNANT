@@ -60,7 +60,7 @@ void TTS::calcForce(
     const double ssmin = this->ssmin;
     const double alfa = this->alfa;
 
-    RAJA::forall<exec_policy>(sfirst, slast, [=] RAJA_DEVICE(int s) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(sfirst, slast), [=] RAJA_DEVICE(int s) {
         int z = mapsz[s];
 
         double svfacinv = zarea[z] / sarea[s];
