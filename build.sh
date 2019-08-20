@@ -2,7 +2,8 @@ rm -rf build
 mkdir build
 cd build
 
-~/cmake/cmake-3.11.0-rc4/bin/cmake \
+cmake \
+    -DBLT_CXX_STD=c++11\
     -DCMAKE_CXX_COMPILER=g++\
     -DCMAKE_C_COMPILER=gcc\
     -DENABLE_TESTS=Off\

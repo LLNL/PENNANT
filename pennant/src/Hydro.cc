@@ -105,7 +105,7 @@ void Hydro::init() {
     cftot = Memory::alloc<double2>(nums);
 
     // initialize hydro vars
-    RAJA::forall<chunk_policy>(0, numzch, [=] (int zch) {
+    RAJA::forall<chunk_policy>(RAJA::RangeSegment(0, numzch), [=] (int zch) {
         int zfirst = mesh->zchzfirst[zch];
         int zlast = mesh->zchzlast[zch];
 
@@ -116,7 +116,7 @@ void Hydro::init() {
         initHydroVars(zfirst, zlast, zx, zvol);
     });  // for sch
 
-    RAJA::forall<chunk_policy>(0, numpch, [=] (int pch) {
+    RAJA::forall<chunk_policy>(RAJA::RangeSegment(0, numpch), [=] (int pch) {
         int pfirst = mesh->pchpfirst[pch];
         int plast = mesh->pchplast[pch];
         if (uinitradial != 0.)
@@ -144,7 +144,7 @@ void Hydro::initHydroVars(
     const vector<double>& subrgn = mesh->subregion;
     if (!subrgn.empty()) {
         const double eps = 1.e-12;
-        RAJA::forall<inner_exec_host>(zfirst, zlast, [=] (int z) {
+        RAJA::forall<inner_exec_host>(RAJA::RangeSegment(zfirst, zlast), [=] (int z) {
             if (zx[z].x > (subrgn[0] - eps) &&
                 zx[z].x < (subrgn[1] + eps) &&
                 zx[z].y > (subrgn[2] - eps) &&
@@ -155,7 +155,7 @@ void Hydro::initHydroVars(
       });
     }
 
-    RAJA::forall<exec_policy>(zfirst, zlast, [=] RAJA_DEVICE(int z) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(zfirst, zlast), [=] RAJA_DEVICE(int z) {
         zm[z] = zr[z] * zvol[z];
         zetot[z] = ze[z] * zm[z];
     });
@@ -170,7 +170,7 @@ void Hydro::initRadialVel(
     const double2* px = mesh->px;
     const double eps = 1.e-12;
 
-    RAJA::forall<exec_policy>(pfirst, plast, [=] RAJA_DEVICE(int p) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(pfirst, plast), [=] RAJA_DEVICE(int p) {
         double pmag = length(px[p]);
         if (pmag > eps)
             pu[p] = vel * px[p] / pmag;
@@ -207,7 +207,7 @@ void Hydro::doCycle(
     double* zdl = mesh->zdl;
 
     // Begin hydro cycle
-    RAJA::forall<chunk_policy>(0, numpch, [=] (int pch) {
+    RAJA::forall<chunk_policy>(RAJA::RangeSegment(0, numpch), [=] (int pch) {
         int pfirst = mesh->pchpfirst[pch];
         int plast = mesh->pchplast[pch];
 
@@ -220,7 +220,7 @@ void Hydro::doCycle(
         advPosHalf(px0, pu0, dt, pxp, pfirst, plast);
     }); // for pch
 
-    RAJA::forall<chunk_policy>(0, numsch, [=] (int sch) {
+    RAJA::forall<chunk_policy>(RAJA::RangeSegment(0, numsch), [=] (int sch) {
         int sfirst = mesh->schsfirst[sch];
         int slast = mesh->schslast[sch];
         int zfirst = mesh->schzfirst[sch];
@@ -258,7 +258,7 @@ void Hydro::doCycle(
     mesh->sumToPoints(cmaswt, pmaswt);
     mesh->sumToPoints(cftot, pf);
 
-    RAJA::forall<chunk_policy>(0, numpch, [=] (int pch) {
+    RAJA::forall<chunk_policy>(RAJA::RangeSegment(0, numpch), [=] (int pch) {
         int pfirst = mesh->pchpfirst[pch];
         int plast = mesh->pchplast[pch];
 
@@ -279,7 +279,7 @@ void Hydro::doCycle(
 
     resetDtHydro();
 
-    RAJA::forall<chunk_policy>(0, numsch, [=] (int sch) {
+    RAJA::forall<chunk_policy>(RAJA::RangeSegment(0, numsch), [=] (int sch) {
         int sfirst = mesh->schsfirst[sch];
         int slast = mesh->schslast[sch];
         int zfirst = mesh->schzfirst[sch];
@@ -298,7 +298,7 @@ void Hydro::doCycle(
     mesh->checkBadSides();
 
     RAJA::ReduceMin<reduce_policy, double> newdt(1.0e99);
-    RAJA::forall<chunk_policy>(0, mesh->numzch, [=] (int zch) {
+    RAJA::forall<chunk_policy>(RAJA::RangeSegment(0, mesh->numzch), [=] (int zch) {
         int zfirst = mesh->zchzfirst[zch];
         int zlast = mesh->zchzlast[zch];
 
@@ -326,7 +326,7 @@ void Hydro::advPosHalf(
 
     double dth = 0.5 * dt;
 
-    RAJA::forall<exec_policy>(pfirst, plast, [=] RAJA_DEVICE(int p) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(pfirst, plast), [=] RAJA_DEVICE(int p) {
         pxp[p] = px0[p] + pu0[p] * dth;
     });
 }
@@ -342,7 +342,7 @@ void Hydro::advPosFull(
         const int pfirst,
         const int plast) {
 
-    RAJA::forall<exec_policy>(pfirst, plast, [=] RAJA_DEVICE(int p) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(pfirst, plast), [=] RAJA_DEVICE(int p) {
         pu[p] = pu0[p] + pa[p] * dt;
         px[p] = px0[p] + 0.5 * (pu[p] + pu0[p]) * dt;
     });
@@ -360,7 +360,7 @@ void Hydro::calcCrnrMass(
 
     int* mapss3 = mesh->mapss3;
     int* mapsz = mesh->mapsz;
-    RAJA::forall<exec_policy>(sfirst, slast, [=] RAJA_DEVICE(int s) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(sfirst, slast), [=] RAJA_DEVICE(int s) {
         int s3 = mapss3[s];
         int z = mapsz[s];
 
@@ -379,7 +379,7 @@ void Hydro::sumCrnrForce(
         const int slast) {
 
     int* mapss3 = mesh->mapss3;
-    RAJA::forall<exec_policy>(sfirst, slast, [=] RAJA_DEVICE(int s) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(sfirst, slast), [=] RAJA_DEVICE(int s) {
         int s3 = mapss3[s];
 
         double2 f = (sf[s] + sf2[s] + sf3[s]) -
@@ -398,7 +398,7 @@ void Hydro::calcAccel(
 
     const double fuzz = 1.e-99;
 
-    RAJA::forall<exec_policy>(pfirst, plast, [=] RAJA_DEVICE(int p) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(pfirst, plast), [=] RAJA_DEVICE(int p) {
         pa[p] = pf[p] / max(pmass[p], fuzz);
     });
 
@@ -412,7 +412,7 @@ void Hydro::calcRho(
         const int zfirst,
         const int zlast) {
 
-    RAJA::forall<exec_policy>(zfirst, zlast, [=] RAJA_DEVICE(int z) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(zfirst, zlast), [=] RAJA_DEVICE(int z) {
         zr[z] = zm[z] / zvol[z];
     });
 
@@ -441,7 +441,7 @@ void Hydro::calcWork(
     int* mapsp1 = mesh->mapsp1;
     int* mapsp2 = mesh->mapsp2;
     int* mapsz = mesh->mapsz;
-    RAJA::forall<exec_policy>(sfirst, slast, [=] RAJA_DEVICE(int s) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(sfirst, slast), [=] RAJA_DEVICE(int s) {
         int p1 = mapsp1[s];
         int p2 = mapsp2[s];
         int z = mapsz[s];
@@ -451,8 +451,8 @@ void Hydro::calcWork(
         double sd2 = dot(-sftot, (pu0[p2] + pu[p2]));
         double dwork = -dth * (sd1 * px[p1].x + sd2 * px[p2].x);
 
-        RAJA::atomic::atomicAdd<atomic_policy>(&zetot[z], dwork);
-        RAJA::atomic::atomicAdd<atomic_policy>(&zw[z], dwork);
+        RAJA::atomicAdd<atomic_policy>(&zetot[z], dwork);
+        RAJA::atomicAdd<atomic_policy>(&zw[z], dwork);
     });
 
 }
@@ -468,7 +468,7 @@ void Hydro::calcWorkRate(
         const int zfirst,
         const int zlast) {
     double dtinv = 1. / dt;
-    RAJA::forall<exec_policy>(zfirst, zlast, [=] RAJA_DEVICE(int z) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(zfirst, zlast), [=] RAJA_DEVICE(int z) {
         double dvol = zvol[z] - zvol0[z];
         zwrate[z] = (zw[z] + zp[z] * dvol) * dtinv;
     });
@@ -484,7 +484,7 @@ void Hydro::calcEnergy(
         const int zlast) {
 
     const double fuzz = 1.e-99;
-    RAJA::forall<exec_policy>(zfirst, zlast, [=] RAJA_DEVICE(int z) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(zfirst, zlast), [=] RAJA_DEVICE(int z) {
         ze[z] = zetot[z] / (zm[z] + fuzz);
     });
 
@@ -508,7 +508,7 @@ void Hydro::sumEnergy(
 
     // compute internal energy
     RAJA::ReduceSum<inner_reduce_policy, double> sumi(0.); 
-    RAJA::forall<exec_policy>(zfirst, zlast, [=] RAJA_DEVICE(int z) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(zfirst, zlast), [=] RAJA_DEVICE(int z) {
         sumi += zetot[z];
     });
     // multiply by 2\pi for cylindrical geometry
@@ -523,7 +523,7 @@ void Hydro::sumEnergy(
     int* mapsp1 = mesh->mapsp1;
     int* mapsz = mesh->mapsz;
     RAJA::ReduceSum<inner_reduce_policy, double> sumk(0.); 
-    RAJA::forall<exec_policy>(sfirst, slast, [=] RAJA_DEVICE(int s) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(sfirst, slast), [=] RAJA_DEVICE(int s) {
         int s3 = mapss3[s];
         int p1 = mapsp1[s];
         int z = mapsz[s];
@@ -552,7 +552,7 @@ void Hydro::calcDtCourant(
     const double* zdu = this->zdu;
     const double* zss = this->zss;
     const double cfl = this->cfl;
-    RAJA::forall<exec_policy>(zfirst, zlast, [=] RAJA_DEVICE(int z) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(zfirst, zlast), [=] RAJA_DEVICE(int z) {
         double cdu = max(zdu[z], max(zss[z], fuzz));
         double zdthyd = zdl[z] * cfl / cdu;
 
@@ -582,7 +582,7 @@ void Hydro::calcDtVolume(
 
     RAJA::ReduceMaxLoc<inner_reduce_policy, double> dvovmax(1.e-99, -1);
 
-    RAJA::forall<exec_policy>(zfirst, zlast, [=] RAJA_DEVICE(int z) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(zfirst, zlast), [=] RAJA_DEVICE(int z) {
         double zdvov = abs((zvol[z] - zvol0[z]) / zvol0[z]);
 
         // zmax = (zdvov > dvovmax ? z : zmax);
@@ -656,7 +656,7 @@ void Hydro::writeEnergyCheck() {
     RAJA::ReduceSum<reduce_policy, double> ei(0.);
     RAJA::ReduceSum<reduce_policy, double> ek(0.);
 
-    RAJA::forall<chunk_policy>(0, mesh->numsch, [=] (int sch) {
+    RAJA::forall<chunk_policy>(RAJA::RangeSegment(0, mesh->numsch), [=] (int sch) {
         int sfirst = mesh->schsfirst[sch];
         int slast = mesh->schslast[sch];
         int zfirst = mesh->schzfirst[sch];

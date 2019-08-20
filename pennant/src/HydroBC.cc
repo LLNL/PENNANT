@@ -47,7 +47,7 @@ void HydroBC::applyFixedBC(
     const int* mapbp = this->mapbp;
     const double2 vfix = this->vfix;
 
-    RAJA::forall<exec_policy>(bfirst, blast, [=] RAJA_DEVICE(int b) {
+    RAJA::forall<exec_policy>(RAJA::RangeSegment(bfirst, blast), [=] RAJA_DEVICE(int b) {
         int p = mapbp[b];
 
         pu[p] = project(pu[p], vfix);
